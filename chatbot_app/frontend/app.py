@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import sys 
+import time
 from langchain_core.messages import HumanMessage
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,37 +18,39 @@ for message in st.session_state['messages']:
 
 # to get the user input
 user_input = st.chat_input("Type here: ")
-config= {'configurable':{'thread_id': '2'}}
+config = {'configurable': {'thread_id': '2'}}
 
 if user_input:
     st.session_state['messages'].append({"role": "user", "content": user_input})
     
     # display the user message in chat message container
-    # icon can be changed using avatar parameter like st.chat_message("user", avatar="🧑")
     with st.chat_message("user"):
         st.text(user_input)
     
     ## enable below code for without streaming
-    ## << nostreaming >>
+    # start_time = time.time()
     # response = workflow.invoke({'user_input': user_input}, config=config) 
     # final_response = response['response']
+    # end_time = time.time()
+    # response_time = end_time - start_time
     # st.session_state['messages'].append({"role": "assistant", "content": final_response}) 
-
-    # # display the assistant response in chat message container
     # with st.chat_message("assistant"):
-    #     st.text(final_response)
-    ## << nostreaming >>
+    #     st.markdown(final_response)
+    #     st.caption(f"⏱️{response_time:.2f} seconds")
 
-    ## enable below code for with streaming
+    ## with streaming
     with st.chat_message("assistant"):
-        # streaming using streamlit .write_stream
+        start_time = time.time()
         ai_message = st.write_stream(
             message_chunk.content for message_chunk, metadata in workflow.stream(
                 {'user_input': user_input},
-                config= config,
-                stream_mode= 'messages'
+                config=config,
+                stream_mode='messages'
             )
         )
+        end_time = time.time()
+        response_time = end_time - start_time
+
+        st.caption(f"⏱️{response_time:.2f} seconds")
 
     st.session_state['messages'].append({"role": "assistant", "content": ai_message})
-        

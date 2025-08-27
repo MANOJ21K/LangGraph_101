@@ -44,8 +44,8 @@ def chat_node(state: ChatState) -> ChatState:
 
     # update state after streaming
     state["response"] = response
-    state['chat_history'].append(HumanMessage(content=user_input))
-    state['chat_history'].append(AIMessage(content=response))
+    # state['chat_history'].append(HumanMessage(content=user_input))
+    # state['chat_history'].append(AIMessage(content=response))
     return state
 
 # Create the workflow
