@@ -1,7 +1,7 @@
 import streamlit as st
 import os
-import sys
-
+import sys 
+from langchain_core.messages import HumanMessage
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from backend.main import workflow
@@ -17,7 +17,7 @@ for message in st.session_state['messages']:
 
 # to get the user input
 user_input = st.chat_input("Type here: ")
-config= {'configurable':{'thread_id': '1'}}
+config= {'configurable':{'thread_id': '2'}}
 
 if user_input:
     st.session_state['messages'].append({"role": "user", "content": user_input})
@@ -27,11 +27,27 @@ if user_input:
     with st.chat_message("user"):
         st.text(user_input)
     
-    response = workflow.invoke({'user_input': user_input}, config=config) 
-    final_response = response['response']
-    st.session_state['messages'].append({"role": "assistant", "content": final_response}) 
+    ## enable below code for without streaming
+    ## << nostreaming >>
+    # response = workflow.invoke({'user_input': user_input}, config=config) 
+    # final_response = response['response']
+    # st.session_state['messages'].append({"role": "assistant", "content": final_response}) 
 
-    # display the assistant response in chat message container
+    # # display the assistant response in chat message container
+    # with st.chat_message("assistant"):
+    #     st.text(final_response)
+    ## << nostreaming >>
+
+    ## enable below code for with streaming
     with st.chat_message("assistant"):
-        st.text(final_response)
+        # streaming using streamlit .write_stream
+        ai_message = st.write_stream(
+            message_chunk.content for message_chunk, metadata in workflow.stream(
+                {'user_input': user_input},
+                config= config,
+                stream_mode= 'messages'
+            )
+        )
+
+    st.session_state['messages'].append({"role": "assistant", "content": ai_message})
         
