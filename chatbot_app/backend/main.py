@@ -5,15 +5,14 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.message import add_messages
 from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class ChatState(TypedDict):
     user_input: str
     response: str
-    chat_history: Annotated[list[BaseMessage], add_messages]
-
-from dotenv import load_dotenv
-load_dotenv()
-
+    messages: Annotated[list[BaseMessage], add_messages]  # Changed from chat_history to messages
 
 llm = ChatGroq(
     model="llama-3.3-70b-versatile",
@@ -27,26 +26,38 @@ llm = ChatGroq(
 def chat_node(state: ChatState) -> ChatState:
     user_input = state['user_input']
     
-    previous_chat_history = state.get('chat_history', [])
-    messages=[
-            {
-                "role": "system",
-                "content": "You are a helpful assistant."
-            },
-            {
-                "role": "user",
-                "content": f"""Here is the previous chat history: {previous_chat_history} and
-                            This is the current user input: {user_input}""",
-            }
+    # Get previous messages from state
+    previous_messages = state.get('messages', [])
+    
+    # Create the conversation context
+    # Start with system message
+    conversation = [
+        {"role": "system", "content": "You are a helpful assistant."}
+    ]
+    
+    # Add previous messages in the correct format
+    for msg in previous_messages:
+        if isinstance(msg, HumanMessage):
+            conversation.append({"role": "user", "content": msg.content})
+        elif isinstance(msg, AIMessage):
+            conversation.append({"role": "assistant", "content": msg.content})
+    
+    # Add current user input
+    conversation.append({"role": "user", "content": user_input})
+    
+    # Get response from LLM
+    response = llm.invoke(conversation)
+    
+    # Return state with new messages added
+    # The add_messages reducer will automatically handle adding the new messages
+    return {
+        "user_input": user_input,
+        "response": response.content,
+        "messages": [
+            HumanMessage(content=user_input),
+            AIMessage(content=response.content)
         ]
-
-    response = llm.invoke(messages)
-
-    # update state after streaming
-    state["response"] = response
-    # state['chat_history'].append(HumanMessage(content=user_input))
-    # state['chat_history'].append(AIMessage(content=response))
-    return state
+    }
 
 # Create the workflow
 graph = StateGraph(ChatState)
@@ -56,4 +67,3 @@ graph.add_edge('chat_node', END)
 
 checkpointer = MemorySaver()
 workflow = graph.compile(checkpointer=checkpointer)
-
